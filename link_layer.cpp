@@ -30,25 +30,55 @@ Link_layer::Link_layer(Physical_layer_interface* physical_layer_interface,
 
 unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
 {
-	unsigned int n = physical_layer_interface->send(buffer,length);
-
-	return n;
+    pthread_mutex_lock(&mutex);
+    if (length == 0 || length >MAXIMUM_DATA_LENGTH)
+    {
+        throw Link_layer_exception();
+    }
+    if((start-end)<limit)
+    {
+        struct Timed_packet P;
+        
+        gettimeofday(P.send_time,NULL);
+        
+        for(unsigned int i=0;i<length;i++)
+        {
+            P.header.data[i] = buffer[i];
+        }
+        P.header.data_length = length;
+        P.header.seq = next_send_seq;
+        send_queue[start] = P;
+        start++;
+        next_send_seq++;
+        send_queue_size++;
+        pthread_mutex_unlock(&mutex);
+        return length;
+    }
+    else
+    {
+        pthread_mutex_unlock(&mutex);
+        return 0;
+    }
+    
 }
 
 unsigned int Link_layer::receive(unsigned char buffer[])
 {
     unsigned int N = receive_buffer;
-    if(N != 0)
+    pthread_mutex_lock(&mutex);
+    if(N > 0)
     {
         for(unsigned int i = 0;i<N;i++)
         {
             buffer[i] = receive_buffer[i];
         }
         receive_buffer_length = 0;
+        pthread_mutex_unlock(&mutex);
         return N;
     }
     else
     {
+        pthread_mutex_unlock(&mutex);
         return 0;
     }
 }
