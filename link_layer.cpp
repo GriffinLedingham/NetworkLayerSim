@@ -33,6 +33,7 @@ Link_layer::Link_layer(Physical_layer_interface* physical_layer_interface,
 
 unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
 {
+    cout<<"\t\tSend. \n";
     if (length == 0 || length >MAXIMUM_DATA_LENGTH)
     {
         throw Link_layer_exception();
@@ -73,6 +74,7 @@ unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
 
 unsigned int Link_layer::receive(unsigned char buffer[])
 {
+    
     pthread_mutex_lock(&mutex);
     unsigned int N = receive_buffer_length;
     if(N > 0)
@@ -176,6 +178,7 @@ void Link_layer::generate_ack_packet()
 {
     if(send_queue_size == 0)
     {
+        //cout << "Gen Ack\n";
         Timed_packet P;
         gettimeofday(&(P.send_time),NULL);
         
@@ -201,6 +204,7 @@ void* Link_layer::loop(void* thread_creator)
     
     while (true)
     {
+        pthread_mutex_lock(&mutex);
         link_layer->physical_layer_interface->receive((unsigned char*)&P);
         unsigned int N = P.header.data_length + sizeof(struct Packet_header);
         if(N > 0)
@@ -210,14 +214,10 @@ void* Link_layer::loop(void* thread_creator)
                && P.header.data_length <= MAXIMUM_DATA_LENGTH
                && P.header.checksum == checksum(P))
             {
-                pthread_mutex_lock(&mutex);
                 link_layer->process_received_packet(P);
-                pthread_mutex_unlock(&mutex);
                 
             }
         }
-        
-        pthread_mutex_lock(&mutex);
         link_layer->remove_acked_packets();
         link_layer->send_timed_out_packets();
         pthread_mutex_unlock(&mutex);
