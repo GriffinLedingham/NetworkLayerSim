@@ -23,9 +23,6 @@ Link_layer::Link_layer(Physical_layer_interface* physical_layer_interface,
     
     send_queue_size = 0;
     
-    start = 0;
-    end = 0;
-    
     timeval_timeout.tv_usec = timeout;
     
     if (pthread_create(&thread,NULL,&Link_layer::loop,this) < 0)
@@ -205,7 +202,7 @@ void* Link_layer::loop(void* thread_creator)
     while (true)
     {
         link_layer->physical_layer_interface->receive((unsigned char*)&P);
-        unsigned int N = P.header.data_length + sizeof(struct Packet_header);//length;
+        unsigned int N = P.header.data_length + sizeof(struct Packet_header);
         if(N > 0)
         {
             if(N >= HEADER_LENGTH
