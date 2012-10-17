@@ -45,12 +45,12 @@ private:
 	unsigned int max_send_window_size;
     unsigned int send_queue_size;
     
-    Timed_packet *send_queue[MAX_SEND];
+    Timed_packet send_queue[MAX_SEND];
         
     timeval timeval_timeout;
 	pthread_t thread;
     
-    unsigned int start, end;
+    unsigned int start, end, limit;
 
 	// seq for next packet added to send_queue
 	unsigned int next_send_seq;
