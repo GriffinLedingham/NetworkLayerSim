@@ -7,6 +7,7 @@ unsigned int num_seq = 10;
 // const int PHYSICAL_LAYER_DELAY = 10;
 const int PHYSICAL_LAYER_DELAY = 0;
 
+
 Impair a_impair(NULL,0, NULL,0, PHYSICAL_LAYER_DELAY);
 
 Impair b_impair(NULL,0, NULL,0, PHYSICAL_LAYER_DELAY);

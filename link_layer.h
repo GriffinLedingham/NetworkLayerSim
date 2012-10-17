@@ -32,7 +32,6 @@ public:
 	 Physical_layer_interface::MAXIMUM_BUFFER_LENGTH-sizeof(Packet_header)};
     enum {HEADER_LENGTH =
         sizeof(Packet_header)};
-    enum {MAX_SEND = 100};
 	Link_layer(Physical_layer_interface* physical_layer_interface,
 	 unsigned int num_sequence_numbers,
 	 unsigned int max_send_window_size,unsigned int timeout);
@@ -47,6 +46,7 @@ private:
     unsigned int send_queue_size;
     
     deque<Timed_packet> send_queue;
+    deque<Timed_packet>::iterator h;
     
     timeval timeval_timeout;
 	pthread_t thread;

@@ -41,7 +41,7 @@ unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
         throw Link_layer_exception();
     }
     pthread_mutex_lock(&mutex);
-    //if((start == end || (start != end && start%limit != end %limit))&& send_queue_size < limit)
+    
     if(send_queue_size < limit)
     {
         struct Timed_packet P;
@@ -57,7 +57,13 @@ unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
         
         send_queue.push_back(P);
         send_queue_size++;
-        next_send_seq = (1+next_send_seq)%numseq;
+        
+        next_send_seq++;
+        if(next_send_seq==numseq)
+        {
+            next_send_seq = 0;
+        }
+        
         pthread_mutex_unlock(&mutex);
         return length;
     }
@@ -79,7 +85,6 @@ unsigned int Link_layer::receive(unsigned char buffer[])
             buffer[i] = receive_buffer[i];
         }
         receive_buffer_length = 0;
-        //cout<<"received! N= " << N << "\n";
         pthread_mutex_unlock(&mutex);
         return N;
     }
@@ -102,58 +107,71 @@ void Link_layer::process_received_packet(struct Packet p)
                 {
                     receive_buffer[i] = p.data[i];
                 }
+                
                 receive_buffer_length = p.header.data_length;
-                //cout<<"process received! buf length: " << receive_buffer_length << "\n";
-                next_receive_seq = (1+next_receive_seq)%numseq;
+                
+                next_receive_seq++;
+                if(next_receive_seq==numseq)
+                {
+                    next_receive_seq = 0;
+                }
             }
         }
         else
         {
-            next_receive_seq = (1+next_receive_seq)%numseq;
+            next_receive_seq++;
+            if(next_receive_seq==numseq)
+            {
+                next_receive_seq = 0;
+            }
         }
     }
-    
     last_receive_ack = p.header.ack;
-    
 }
 
 void Link_layer::remove_acked_packets()
 {
+    h = send_queue.begin();
+    unsigned int i=1;
+    
     if(send_queue_size >0 )
     {
-        unsigned int i=1;
-        for (deque<Timed_packet>::iterator j = send_queue.begin(); j != send_queue.end(); j++)
+        while(h != send_queue.end())
         {
-            
-            if ((*j).packet.header.seq == last_receive_ack - 1)
+            if ((*h).packet.header.seq == (last_receive_ack-1))
             {
-
                 send_queue.erase(send_queue.begin(), send_queue.begin() + i);
                 send_queue_size-=(i);
-                break;
+                return;
             }
             i++;
+            h++;
         }
     }
 }
 
 void Link_layer::send_timed_out_packets()
 {
-    Timed_packet P;
-    for (deque<Timed_packet>::iterator j = send_queue.begin(); j != send_queue.end(); j++)
+    h = send_queue.begin();
+    
+    while(h != send_queue.end())
     {
         timeval current;
         gettimeofday(&current,NULL);
-        if ((*j).send_time < current)
+        
+        if (current > (*h).send_time)
         {
-            (*j).packet.header.ack = next_receive_seq;
-            (*j).packet.header.checksum = checksum((*j).packet);
-            if (physical_layer_interface->send((unsigned char *)&((*j).packet), sizeof((*j).packet)) != 0)
+            (*h).packet.header.ack = next_receive_seq;
+            (*h).packet.header.checksum = checksum((*h).packet);
+            
+            if (physical_layer_interface->send((unsigned char *)&((*h).packet), ((*h).packet.header.data_length + sizeof(struct Packet_header))))
             {
                 gettimeofday(&current,NULL);
-                (*j).send_time.tv_usec = current.tv_usec + timeval_timeout.tv_usec;
+                current = current + timeval_timeout;
+                (*h).send_time = current;
             }
         }
+        h++;
     }
 }
 
@@ -163,9 +181,16 @@ void Link_layer::generate_ack_packet()
     {
         Timed_packet P;
         gettimeofday(&(P.send_time),NULL);
+        
         P.packet.header.seq = next_send_seq;
         P.packet.header.data_length = 0;
-        next_send_seq = (1+next_send_seq)%numseq;
+        
+        next_send_seq++;
+        if(next_send_seq==numseq)
+        {
+            next_send_seq = 0;
+        }
+        
         send_queue.push_back(P);
         send_queue_size++;
     }
@@ -179,10 +204,10 @@ void* Link_layer::loop(void* thread_creator)
     
     while (true)
     {
-        unsigned int length = link_layer->physical_layer_interface->receive((unsigned char*)&P);
-        if(length > 0)
+        link_layer->physical_layer_interface->receive((unsigned char*)&P);
+        unsigned int N = P.header.data_length + sizeof(struct Packet_header);//length;
+        if(N > 0)
         {
-            unsigned int N = P.header.data_length + sizeof(struct Packet_header);//length;
             if(N >= HEADER_LENGTH
                && N <= HEADER_LENGTH + MAXIMUM_DATA_LENGTH
                && P.header.data_length <= MAXIMUM_DATA_LENGTH

@@ -4,3 +4,7 @@
 link_layer_test
 
 .DS_Store
+
+*.o
+
+*.o
