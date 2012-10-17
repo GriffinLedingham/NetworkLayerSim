@@ -41,7 +41,8 @@ unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
         throw Link_layer_exception();
     }
     pthread_mutex_lock(&mutex);
-    if((start == end || (start != end && start%limit != end %limit))&& send_queue_size < limit)
+    //if((start == end || (start != end && start%limit != end %limit))&& send_queue_size < limit)
+    if(send_queue_size < limit)
     {
         struct Timed_packet P;
         
@@ -55,6 +56,7 @@ unsigned int Link_layer::send(unsigned char buffer[],unsigned int length)
         P.packet.header.seq = next_send_seq;
         
         send_queue.push_back(P);
+        send_queue_size++;
         next_send_seq = (1+next_send_seq)%numseq;
         pthread_mutex_unlock(&mutex);
         return length;
@@ -127,6 +129,7 @@ void Link_layer::remove_acked_packets()
             {
 
                 send_queue.erase(send_queue.begin(), send_queue.begin() + i);
+                send_queue_size-=(i);
                 break;
             }
             i++;
@@ -156,7 +159,7 @@ void Link_layer::send_timed_out_packets()
 
 void Link_layer::generate_ack_packet()
 {
-    if(send_queue_size == 0 && start== end)
+    if(send_queue_size == 0)
     {
         Timed_packet P;
         gettimeofday(&(P.send_time),NULL);
@@ -164,6 +167,7 @@ void Link_layer::generate_ack_packet()
         P.packet.header.data_length = 0;
         next_send_seq = (1+next_send_seq)%numseq;
         send_queue.push_back(P);
+        send_queue_size++;
     }
 }
 
