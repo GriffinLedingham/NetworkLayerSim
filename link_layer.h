@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <exception>
+#include <deque>
 
 #include "physical_layer.h"
 
@@ -45,8 +46,8 @@ private:
 	unsigned int max_send_window_size;
     unsigned int send_queue_size;
     
-    Timed_packet send_queue[MAX_SEND];
-        
+    deque<Timed_packet> send_queue;
+    
     timeval timeval_timeout;
 	pthread_t thread;
     
